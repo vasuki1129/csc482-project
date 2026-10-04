@@ -1,7 +1,21 @@
+#+TITLE: EvE Online Market Data Analyzer
+#+AUTHOR: Max Morabito
+
+#+latex_header: \usepackage{minted} 
+#+OPTIONS: ^:{}
+#+LATEX_HEADER: \usepackage[margin=0.25in]{geometry}
 * Introduction
+** Project Location
+The project's repository is located at [https://github.com/vasuki1129/csc482-project], and all code and documentation is stored there.
+** Style and Literate Programming
 This project makes heavy use of literate programming to ensure every last section of code is documented.  As a result, the source code of this project *is* this file.  The actual source that is compiled and run is created by extracting the code blocks from \textit{documentation.org} into the correct files. As such, if you want to look at the code, you're better off just reading this file, because they are one and the same. 
 
+
+
 * The Go Polling Agent
+The purpose of the Go polling agent is to periodically retrieve market prices and trim them to a size that can be stored efficiently as a timeseries. As such, it retrieves the data at the correct cache periods, trims it to size, sorts it, and then (currently) presents it to the user in their console.
+
+** Imports, Settings, and Data Structures
 
 Standard library imports, nothing to say really.
 
@@ -88,12 +102,12 @@ func log_loggly(str string, log_level LogLevel){
 Just some Go nonsense you have to do to set headers, no idea why the Post utility doesn't just accept a map.  We're just posting to the Loggly url.
 
 #+BEGIN_SRC go :tangle go_polling_agent/main.go
-	body := strings.NewReader(str)
+  body := strings.NewReader(str)
 
-	req, err := http.NewRequest("POST", loggly_url, body)
-	if err != nil {
-		panic("Could not create logging request")
-	}
+  req, err := http.NewRequest("POST", loggly_url, body)
+  if err != nil {
+  	panic("Could not create logging request")
+  }
 #+END_SRC
 
 Next we set the Loggly tag based on the enum coming in.
@@ -147,27 +161,30 @@ func poll_data() int64  {
 Just make a basic get request with a timeout to the endpoint we want. The specific values chosen for the region and type id are a region and item with high volume so the data changes more frequently.
 
 #+BEGIN_SRC go :tangle go_polling_agent/main.go
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+  defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://esi.evetech.net/markets/10000002/orders?type_id=30013", nil)
-	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
-	}
-	
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-	}
+  req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://esi.evetech.net/markets/10000002/orders?type_id=30013", nil)
+  if err != nil {
+  	log.Fatalf("Failed to create request: %v", err)
+  	log_loggly("Failed to create polling request", Error)
+  }
 
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalf("Request execution failed: %v", err)
-	}
-	defer resp.Body.Close() 
+  client := &http.Client{
+  	Timeout: 5 * time.Second,
+  }
 
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Server returned unexpected status: %s", resp.Status)
-	}
+  resp, err := client.Do(req)
+  if err != nil {
+  	log.Fatalf("Request execution failed: %v", err)
+  	log_loggly("Polling request execution failed.", Error)
+  }
+  defer resp.Body.Close() 
+
+  if resp.StatusCode != http.StatusOK {
+  	log_loggly("Server returned unexpected status " + resp.Status, Error)
+  	log.Fatalf("Server returned unexpected status: %s", resp.Status)
+  }
 
 #+end_src
 
@@ -185,12 +202,13 @@ The "Expires" header contains the next point in time that new data will be avail
 Now we just unmarshal the JSON response into a slice of Orders.
 
 #+BEGIN_SRC go :tangle go_polling_agent/main.go
-         bytes_read, err := io.ReadAll(resp.Body)
-  	
-         var data []Order
-         if err := json.Unmarshal(bytes_read, &data); err != nil {
-  	  panic(err)
-         }
+  bytes_read, err := io.ReadAll(resp.Body)
+
+  var data []Order
+  if err := json.Unmarshal(bytes_read, &data); err != nil {
+  	log_loggly("Failed to unmarshal response data", Error)
+  	panic(err)
+  }
 
 #+END_SRC
 
@@ -275,3 +293,10 @@ func main() {
 }
 
 #+END_SRC
+\newpage
+** Screenshots
+The following is the Go agent running locally, correctly retrieving the order book. Note the difference between the polls, 16 units were sold to the top buy order, and 16 units bought from the top sell order within the cache period. This means that 41344 credits (less tax) were extracted from the market in the caching period.
+[[./images/polling_screenshot.png]]
+\newpage
+And this is a screenshot of the Loggly window showing the correctly tagged log events.
+[[./images/loggly_screenshot.png]]

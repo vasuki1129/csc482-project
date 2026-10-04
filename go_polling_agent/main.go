@@ -73,6 +73,8 @@ client := &http.Client {
 	defer resp.Body.Close()
 }
 
+
+
 func poll_data() int64  {
 
 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -81,6 +83,7 @@ defer cancel()
 req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://esi.evetech.net/markets/10000002/orders?type_id=30013", nil)
 if err != nil {
 	log.Fatalf("Failed to create request: %v", err)
+	log_loggly("Failed to create polling request", Error)
 }
 
 client := &http.Client{
@@ -90,10 +93,12 @@ client := &http.Client{
 resp, err := client.Do(req)
 if err != nil {
 	log.Fatalf("Request execution failed: %v", err)
+	log_loggly("Polling request execution failed.", Error)
 }
 defer resp.Body.Close() 
 
 if resp.StatusCode != http.StatusOK {
+	log_loggly("Server returned unexpected status " + resp.Status, Error)
 	log.Fatalf("Server returned unexpected status: %s", resp.Status)
 }
 
@@ -106,7 +111,8 @@ bytes_read, err := io.ReadAll(resp.Body)
 
 var data []Order
 if err := json.Unmarshal(bytes_read, &data); err != nil {
- panic(err)
+	log_loggly("Failed to unmarshal response data", Error)
+	panic(err)
 }
 
 var buy_orders []Order
