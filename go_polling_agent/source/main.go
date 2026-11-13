@@ -29,7 +29,7 @@ var loggly_url = os.Getenv("LOGGLY_URL")
 var additional_polling_wait = time.Duration(0) * time.Minute
 
 
-var order_book_depth = 5
+
 
 type Order struct {
 //	Duration   int    `json:"duration"`
@@ -74,7 +74,7 @@ const (
 
 
 func connect_db() *dynamodb.Client {
-	ctx := context.TODO()
+	ctx := context.Background()
 	
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
 	if err != nil {
@@ -116,7 +116,7 @@ func save_record(data []Order, client *dynamodb.Client) {
 	}
 
 	tableName := "mmorabi2_EveOrderTable"
-	_, err = client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+	_, err = client.PutItem(context.Background(), &dynamodb.PutItemInput{
 		TableName: aws.String(tableName),
 		Item: av})
 	if err != nil {
@@ -179,7 +179,6 @@ func poll_data(client *dynamodb.Client) int64  {
 	http_client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
-
 	resp, err := http_client.Do(req)
 	if err != nil {
 		log.Fatalf("Request execution failed: %v", err)
@@ -226,8 +225,8 @@ func poll_data(client *dynamodb.Client) int64  {
 		return cmp.Compare(a.Price,b.Price)
 	})
 
-	buy_orders = buy_orders[0:order_book_depth]
-	sell_orders = sell_orders[0:order_book_depth]
+	buy_orders = buy_orders[0:]
+	sell_orders = sell_orders[0:]
 
 	for _, val := range buy_orders {
 		fmt.Printf("%+v\n", val)
