@@ -23,13 +23,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
-
 var loggly_url = os.Getenv("LOGGLY_URL")
 
 var additional_polling_wait = time.Duration(0) * time.Minute
-
-
-
 
 type Order struct {
 //	Duration   int    `json:"duration"`
@@ -125,13 +121,6 @@ func save_record(data []Order, client *dynamodb.Client) {
 	fmt.Println("Successfully put data to DynamoDB")
 }
 
-
-
-
-
-
-
-
 func log_loggly(str string, log_level LogLevel){
 
 body := strings.NewReader(str)
@@ -158,12 +147,11 @@ client := &http.Client {
 
 	resp,err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Error, could not send log data to Loggly")
+		fmt.Println("Error, could not send log data to Loggly")
+		return
 	}
 	defer resp.Body.Close()
 }
-
-
 
 func poll_data(client *dynamodb.Client) int64  {
 
