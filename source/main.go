@@ -213,8 +213,8 @@ func poll_data(client *dynamodb.Client) int64  {
 		return cmp.Compare(a.Price,b.Price)
 	})
 
-	buy_orders = buy_orders[0:]
-	sell_orders = sell_orders[0:]
+	buy_orders = buy_orders[0:7]
+	sell_orders = sell_orders[0:7]
 
 	for _, val := range buy_orders {
 		fmt.Printf("%+v\n", val)
